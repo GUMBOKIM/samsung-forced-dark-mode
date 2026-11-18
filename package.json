@@ -1,0 +1,24 @@
+{
+  "name": "samsung-forced-dark",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Detect Samsung Internet's forced dark mode, and reproduce it in any browser",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "demo": "node scripts/build.mjs && node scripts/serve.mjs",
+    "test": "node --test \"packages/*/test/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

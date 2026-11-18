@@ -1,0 +1,10 @@
+{
+  "name": "samsung-forced-dark-detect",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tells whether Samsung Internet is forcing dark mode on the current page",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

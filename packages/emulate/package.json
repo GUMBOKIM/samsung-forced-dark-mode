@@ -1,0 +1,11 @@
+{
+  "name": "samsung-forced-dark-emulate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Makes any page look like Samsung Internet's forced dark mode",
+  "exports": {
+    ".": "./src/index.ts",
+    "./color": "./src/color.ts"
+  }
+}
