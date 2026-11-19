@@ -43,6 +43,11 @@ execFileSync(
 	{ stdio: 'inherit' },
 );
 
+// One entry point for people who want both halves from the package root.
+const index = "export * from './detect.js';\nexport * from './emulate.js';\n";
+await writeFile('dist/index.js', index);
+await writeFile('dist/index.d.ts', index);
+
 /** Draws the icon: a circle that is light on the left and dark on the right, like a page going dark */
 function icon(size) {
 	const rgba = Buffer.alloc(size * size * 4);

@@ -9,29 +9,42 @@ An unofficial library that detects Samsung Internet's forced dark mode and repro
 | [`packages/detect`](packages/detect) | Tells you whether forced dark is applied to the current page |
 | [`packages/emulate`](packages/emulate) | Makes a page in any browser look like Samsung Internet's forced dark |
 
-## Getting started
+## Install
 
 ```bash
-npm install
-npm run demo   # http://localhost:5177
-npm test
+npm install samsung-forced-dark-mode
 ```
 
-`npm run build` writes the output to `dist/`.
+```ts
+import { detectForcedDark } from 'samsung-forced-dark-mode/detect';
+import { emulateForcedDark } from 'samsung-forced-dark-mode/emulate';
+// or both at once: import { detectForcedDark, emulateForcedDark } from 'samsung-forced-dark-mode';
+```
+
+Type declarations are included. Without a bundler, the files below can also be used directly from a CDN such as `https://unpkg.com/samsung-forced-dark-mode/dist/<file>`.
 
 | File | Use |
 |---|---|
-| `detect.js`, `emulate.js` | ES modules |
-| `detect.d.ts`, `emulate.d.ts` | Type declarations for `detect.js` and `emulate.js` |
+| `detect.js`, `emulate.js`, `index.js` | ES modules |
+| `detect.d.ts`, `emulate.d.ts`, `index.d.ts` | Type declarations |
 | `detect.ts`, `emulate.ts` | Single TypeScript files to copy into your project |
 | `detect.global.js`, `emulate.global.js` | For `<script>` tags. Globals: `SamsungForcedDarkDetect`, `SamsungForcedDarkEmulate` |
 | `samsung-forced-dark-mode.auto.js` | Applies itself as soon as it loads. Run it again to turn it off |
 | `bookmarklet.txt` | Paste into a bookmark's URL field |
 
+## Development
+
+```bash
+npm install
+npm run demo   # http://localhost:5177
+npm test
+npm run build  # writes everything above to dist/
+```
+
 ## 1. Detecting forced dark
 
 ```ts
-import { detectForcedDark } from './dist/detect.js';
+import { detectForcedDark } from 'samsung-forced-dark-mode/detect';
 
 const { state, forced, sample } = await detectForcedDark();
 
@@ -54,7 +67,7 @@ With forced dark on, `prefers-color-scheme` still reports `light` and `getComput
 Add one script to the page:
 
 ```html
-<script src="samsung-forced-dark-mode.auto.js"></script>
+<script src="https://unpkg.com/samsung-forced-dark-mode/dist/samsung-forced-dark-mode.auto.js"></script>
 ```
 
 You can also paste the contents of `samsung-forced-dark-mode.auto.js` into the DevTools console, or save `bookmarklet.txt` as a bookmark. Running it a second time restores the page.
@@ -62,7 +75,7 @@ You can also paste the contents of `samsung-forced-dark-mode.auto.js` into the D
 To control it from code:
 
 ```ts
-import { emulateForcedDark } from './dist/emulate.js';
+import { emulateForcedDark } from 'samsung-forced-dark-mode/emulate';
 
 const emulation = emulateForcedDark();
 

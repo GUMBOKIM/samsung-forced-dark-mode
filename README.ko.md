@@ -9,29 +9,42 @@
 | [`packages/detect`](packages/detect) | 지금 페이지에 강제 다크가 적용됐는지 알려 줍니다 |
 | [`packages/emulate`](packages/emulate) | 일반 브라우저에서 페이지를 삼성 인터넷의 강제 다크처럼 보이게 합니다 |
 
-## 시작하기
+## 설치
 
 ```bash
-npm install
-npm run demo   # http://localhost:5177
-npm test
+npm install samsung-forced-dark-mode
 ```
 
-`npm run build`를 실행하면 `dist/`에 결과물이 생깁니다.
+```ts
+import { detectForcedDark } from 'samsung-forced-dark-mode/detect';
+import { emulateForcedDark } from 'samsung-forced-dark-mode/emulate';
+// 한 번에: import { detectForcedDark, emulateForcedDark } from 'samsung-forced-dark-mode';
+```
+
+타입 선언이 같이 들어 있습니다. 번들러 없이 쓸 때는 아래 파일을 `https://unpkg.com/samsung-forced-dark-mode/dist/<파일>` 같은 CDN 주소로 바로 불러와도 됩니다.
 
 | 파일 | 용도 |
 |---|---|
-| `detect.js`, `emulate.js` | ES 모듈 |
-| `detect.d.ts`, `emulate.d.ts` | `detect.js`, `emulate.js`를 쓸 때 필요한 타입 선언 |
+| `detect.js`, `emulate.js`, `index.js` | ES 모듈 |
+| `detect.d.ts`, `emulate.d.ts`, `index.d.ts` | 타입 선언 |
 | `detect.ts`, `emulate.ts` | 프로젝트에 복사해서 쓰는 TypeScript 단일 파일 |
 | `detect.global.js`, `emulate.global.js` | `<script>`용. 전역 `SamsungForcedDarkDetect`, `SamsungForcedDarkEmulate` |
 | `samsung-forced-dark-mode.auto.js` | 넣기만 하면 바로 적용되는 파일. 다시 실행하면 꺼집니다 |
 | `bookmarklet.txt` | 북마크 주소에 붙여 넣는 버전 |
 
+## 개발
+
+```bash
+npm install
+npm run demo   # http://localhost:5177
+npm test
+npm run build  # 위 파일을 모두 dist/에 만듭니다
+```
+
 ## 1. 강제 다크 감지
 
 ```ts
-import { detectForcedDark } from './dist/detect.js';
+import { detectForcedDark } from 'samsung-forced-dark-mode/detect';
 
 const { state, forced, sample } = await detectForcedDark();
 
@@ -54,7 +67,7 @@ if (forced) {
 페이지에 넣기만 하면 됩니다.
 
 ```html
-<script src="samsung-forced-dark-mode.auto.js"></script>
+<script src="https://unpkg.com/samsung-forced-dark-mode/dist/samsung-forced-dark-mode.auto.js"></script>
 ```
 
 개발자 도구 콘솔에 `samsung-forced-dark-mode.auto.js`의 내용을 붙여 넣거나, `bookmarklet.txt`를 북마크로 등록해도 됩니다. 한 번 더 실행하면 원래대로 돌아옵니다.
@@ -62,7 +75,7 @@ if (forced) {
 코드에서 제어할 수도 있습니다.
 
 ```ts
-import { emulateForcedDark } from './dist/emulate.js';
+import { emulateForcedDark } from 'samsung-forced-dark-mode/emulate';
 
 const emulation = emulateForcedDark();
 

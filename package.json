@@ -1,21 +1,83 @@
 {
   "name": "samsung-forced-dark-mode",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
   "description": "Detect Samsung Internet's forced dark mode, and reproduce it in any browser",
+  "keywords": [
+    "samsung-internet",
+    "dark-mode",
+    "forced-dark",
+    "force-dark",
+    "night-mode",
+    "samsung",
+    "browser",
+    "emulator"
+  ],
+  "homepage": "https://github.com/GUMBOKIM/samsung-forced-dark-mode#readme",
+  "bugs": {
+    "url": "https://github.com/GUMBOKIM/samsung-forced-dark-mode/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GUMBOKIM/samsung-forced-dark-mode.git"
+  },
+  "license": "MIT",
+  "author": "GUMBOKIM",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./detect": {
+      "types": "./dist/detect.d.ts",
+      "default": "./dist/detect.js"
+    },
+    "./emulate": {
+      "types": "./dist/emulate.d.ts",
+      "default": "./dist/emulate.js"
+    },
+    "./auto": "./dist/samsung-forced-dark-mode.auto.js",
+    "./detect.global.js": "./dist/detect.global.js",
+    "./emulate.global.js": "./dist/emulate.global.js",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/detect.js",
+    "dist/detect.d.ts",
+    "dist/detect.ts",
+    "dist/detect.global.js",
+    "dist/emulate.js",
+    "dist/emulate.d.ts",
+    "dist/emulate.ts",
+    "dist/emulate.global.js",
+    "dist/samsung-forced-dark-mode.auto.js",
+    "dist/bookmarklet.txt",
+    "README.ko.md"
+  ],
+  "sideEffects": [
+    "./dist/samsung-forced-dark-mode.auto.js",
+    "./dist/*.global.js"
+  ],
   "workspaces": [
     "packages/*"
   ],
-  "engines": {
-    "node": ">=22.18.0"
-  },
   "scripts": {
     "build": "node scripts/build.mjs",
     "demo": "node scripts/build.mjs && node scripts/serve.mjs",
     "test": "node --test \"packages/*/test/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "extension": "node scripts/build.mjs && cd dist/extension && rm -f ../extension.zip && zip -qr ../extension.zip ."
+    "extension": "node scripts/build.mjs && cd dist/extension && rm -f ../extension.zip && zip -qr ../extension.zip .",
+    "prepublishOnly": "npm test && npm run typecheck && npm run build"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.18.0"
+    }
   },
   "devDependencies": {
     "@types/node": "24.10.1",
