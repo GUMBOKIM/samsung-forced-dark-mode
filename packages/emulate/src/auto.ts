@@ -16,7 +16,7 @@ if (running?.active) {
 	void detectForcedDark().then(({ forced }) => {
 		// The browser is already converting this page, and converting it twice would be wrong.
 		if (forced) {
-			console.warn('[samsung-forced-dark] Samsung Internet is already forcing dark mode here.');
+			console.warn('[samsung-forced-dark-mode] Samsung Internet is already forcing dark mode here.');
 			return;
 		}
 		scope[KEY] = emulateForcedDark();

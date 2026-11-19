@@ -1,13 +1,15 @@
-# samsung-forced-dark
+# samsung-forced-dark-mode
 
-삼성 인터넷의 강제 다크 모드를 다루는 작은 도구 두 개입니다. 런타임 의존성은 없습니다.
+**English** | [한국어](README.ko.md)
 
-| 패키지 | 하는 일 |
+An unofficial library that detects Samsung Internet's forced dark mode and reproduces it in other browsers. It has no runtime dependencies and is not affiliated with Samsung Electronics.
+
+| Package | What it does |
 |---|---|
-| [`packages/detect`](packages/detect) | 지금 페이지에 강제 다크가 적용됐는지 알려 줍니다 |
-| [`packages/emulate`](packages/emulate) | 일반 브라우저에서 페이지를 삼성 인터넷의 강제 다크처럼 보이게 합니다 |
+| [`packages/detect`](packages/detect) | Tells you whether forced dark is applied to the current page |
+| [`packages/emulate`](packages/emulate) | Makes a page in any browser look like Samsung Internet's forced dark |
 
-## 시작하기
+## Getting started
 
 ```bash
 npm install
@@ -15,16 +17,18 @@ npm run demo   # http://localhost:5177
 npm test
 ```
 
-`npm run build`를 실행하면 `dist/`에 결과물이 생깁니다.
+`npm run build` writes the output to `dist/`.
 
-| 파일 | 용도 |
+| File | Use |
 |---|---|
-| `detect.js`, `emulate.js` | ES 모듈 |
-| `detect.global.js`, `emulate.global.js` | `<script>`용. 전역 `SamsungForcedDarkDetect`, `SamsungForcedDarkEmulate` |
-| `samsung-dark.auto.js` | 넣기만 하면 바로 적용되는 파일. 다시 실행하면 꺼집니다 |
-| `bookmarklet.txt` | 북마크 주소에 붙여 넣는 버전 |
+| `detect.js`, `emulate.js` | ES modules |
+| `detect.d.ts`, `emulate.d.ts` | Type declarations for `detect.js` and `emulate.js` |
+| `detect.ts`, `emulate.ts` | Single TypeScript files to copy into your project |
+| `detect.global.js`, `emulate.global.js` | For `<script>` tags. Globals: `SamsungForcedDarkDetect`, `SamsungForcedDarkEmulate` |
+| `samsung-forced-dark-mode.auto.js` | Applies itself as soon as it loads. Run it again to turn it off |
+| `bookmarklet.txt` | Paste into a bookmark's URL field |
 
-## 1. 강제 다크 감지
+## 1. Detecting forced dark
 
 ```ts
 import { detectForcedDark } from './dist/detect.js';
@@ -32,87 +36,116 @@ import { detectForcedDark } from './dist/detect.js';
 const { state, forced, sample } = await detectForcedDark();
 
 if (forced) {
-  // 예: "메뉴(≡) → 밝게 보기"를 안내합니다
+  // For example, point people to Menu (≡) → Light mode
 }
 ```
 
-| `state` | 뜻 |
+| `state` | Meaning |
 |---|---|
-| `forced` | 삼성 인터넷이 강제 다크를 적용하고 있습니다 |
-| `not-forced` | 삼성 인터넷이지만 강제 다크가 꺼져 있습니다 |
-| `not-samsung` | 삼성 인터넷이 아닙니다 |
-| `unknown` | 삼성 인터넷이지만 값을 읽지 못했습니다 |
+| `forced` | Samsung Internet is applying forced dark |
+| `not-forced` | Samsung Internet, with forced dark off |
+| `not-samsung` | Not Samsung Internet |
+| `unknown` | Samsung Internet, but the value could not be read |
 
-강제 다크가 켜져 있어도 `prefers-color-scheme`은 `light`이고 `getComputedStyle`은 원래 색을 돌려줍니다. 대신 흰색 SVG 이미지를 canvas에 그려 읽으면 255가 아니라 179가 나오는 것을 이용합니다.
+With forced dark on, `prefers-color-scheme` still reports `light` and `getComputedStyle` still returns the original colors. A white SVG image drawn to a canvas, however, reads back as 179 instead of 255, and that is what the detection relies on.
 
-## 2. 삼성 인터넷처럼 보이게 하기
+## 2. Making a page look like Samsung Internet
 
-페이지에 넣기만 하면 됩니다.
+Add one script to the page:
 
 ```html
-<script src="samsung-dark.auto.js"></script>
+<script src="samsung-forced-dark-mode.auto.js"></script>
 ```
 
-개발자 도구 콘솔에 `samsung-dark.auto.js`의 내용을 붙여 넣거나, `bookmarklet.txt`를 북마크로 등록해도 됩니다. 한 번 더 실행하면 원래대로 돌아옵니다.
+You can also paste the contents of `samsung-forced-dark-mode.auto.js` into the DevTools console, or save `bookmarklet.txt` as a bookmark. Running it a second time restores the page.
 
-코드에서 제어할 수도 있습니다.
+To control it from code:
 
 ```ts
 import { emulateForcedDark } from './dist/emulate.js';
 
 const emulation = emulateForcedDark();
 
-emulation.refresh(); // 바로 다시 변환
-emulation.stop();    // 페이지가 가지고 있던 스타일로 복원
+emulation.refresh(); // Convert again right away
+emulation.stop();    // Restore the page's own styles
 ```
 
-| 옵션 | 기본값 | 설명 |
+| Option | Default | Description |
 |---|---|---|
-| `root` | 문서 전체 | 변환할 범위 |
-| `observe` | `true` | 나중에 추가되거나 바뀐 내용도 변환 |
-| `minIntervalMs` | `200` | 페이지가 계속 바뀔 때 변환 사이의 최소 간격 |
+| `root` | The whole document | The subtree to convert |
+| `observe` | `true` | Also converts content added or changed later |
+| `minIntervalMs` | `200` | Shortest gap between conversions while the page keeps changing |
 
-변환하지 않을 요소에는 `data-sfd-ignore` 속성을 붙입니다.
+Add the `data-sfd-ignore` attribute to any element that should stay unconverted.
 
-### 변환 규칙
+### Chrome extension
 
-색을 Y′CbCr(BT.601)로 바꾼 뒤 밝기 Y만 대상별 범위로 옮깁니다. 공식은 Daniel Aleksandersen의 [Samsung Internet 11 분석](https://www.ctrl.blog/entry/samsung-internet-night-mode/)을 따랐고, 범위는 삼성 인터넷 31.0에서 다시 쟀습니다.
+The same emulator also ships as a Chrome extension. Clicking the toolbar button turns it on or off for the current tab.
+
+```bash
+npm run extension   # dist/extension, plus dist/extension.zip for the Chrome Web Store
+```
+
+Open `chrome://extensions`, turn on Developer mode, and load `dist/extension` with **Load unpacked**.
+
+Running as an extension removes several limits of the script version:
+
+- Cross-origin images are fetched by the extension, so the icon rule and per-shape SVG conversion work on any site. Cookies are never sent with these requests.
+- Pages with a strict Content Security Policy work too.
+- Cross-origin `iframe`s are converted as well.
+
+### Conversion rules
+
+Colors are converted to Y′CbCr (BT.601), and only the luma Y moves into a range that depends on what is being painted. The formula comes from Daniel Aleksandersen's [analysis of Samsung Internet 11](https://www.ctrl.blog/entry/samsung-internet-night-mode/). The ranges were measured again on Samsung Internet 31.0.
 
 ```
 m  = (invert && y < 0.85) ? 1 - y : y
 y' = min + m × (max - min)
 ```
 
-| 대상 | 범위 |
+| Painted as | Range |
 |---|---|
-| 일반 배경, 문서 배경 | 0.004 ~ 0.12 |
-| `input`, `textarea` 배경 | 0.067 ~ 0.165 |
-| `button`, `select` 배경 | 0.15 ~ 0.29 |
-| 그라디언트 | 0.02 ~ 0.12 |
-| 테두리 | 0.27 ~ 0.33 |
-| 외곽선 | 0.14 ~ 0.20 |
-| 그림자 | 0.28 ~ 0.33 |
-| SVG | 0.50 ~ 0.70 |
-| 글자 (뒤집기) | 0.29 ~ 1.00 |
-| `<img>` | 모든 채널 × 0.7 |
-| CSS 배경 이미지 | 모든 채널 × 0.5 |
-| `canvas` | 변환 없음 |
+| `<html>` background, or `<body>` background when `<html>` has none | 0.004 – 0.08 |
+| Other backgrounds | 0.004 – 0.12 |
+| `input`, `textarea` background | 0.067 – 0.165 |
+| `button`, `select` background | 0.15 – 0.29 |
+| Gradients | 0.02 – 0.12 |
+| Borders | 0.27 – 0.33 |
+| Outlines | 0.14 – 0.20 |
+| Shadows | 0.28 – 0.33 |
+| SVG shapes | 0.50 – 0.70 |
+| SVG shapes under 20px on both sides (inverted) | 0.50 – 0.70 |
+| SVG `rect`, `circle`, `ellipse` with a side of 90px or more | 0.15 – 0.29 |
+| Text (inverted) | 0.29 – 1.00 |
+| `<img>` | Every channel × 0.7 |
+| CSS background images | Every channel × 0.5 |
+| `canvas` | Unchanged |
 
-가로세로가 모두 20px 이하인 박스의 배경은 글자처럼 뒤집습니다.
+A few more rules apply:
 
-## 검증한 범위
+- A page with no background at all is painted `rgb(1, 1, 1)`.
+- A box no larger than 20px on both sides has its background inverted like text.
+- SVGs used through `<img>` or CSS backgrounds are converted shape by shape, under the same rules as inline SVG.
+- A bitmap counts as an icon when it is at most 90px on both sides, at most 79% of its pixels are opaque, and every visible pixel is dark. Icons get 115 added to every channel.
 
-- **색 변환:** 삼성 인터넷 31.0에서 잰 회색 256단계, 대상 11가지의 값과 모두 ±1 안에서 일치합니다(`npm test`).
-- **감지:** SM-S931N, 삼성 인터넷 31.0.0.81에서 강제 다크가 켜진 상태를 `forced`, 값 179로 판별했습니다. 강제 다크가 꺼진 실기기 상태는 시험하지 않았고, 단위 테스트로만 확인했습니다.
-- **페이지 변환:** Chromium에서 데모 페이지로 변환, 동적 콘텐츠 반영, 원래 스타일 복원을 확인했습니다.
+## What has been tested
 
-## 한계
+Samsung Internet 31.0.0.81 was compared with Chrome 157 on the same SM-S931N phone. A pixel counts as matching when every channel is within 10.
 
-- 페이지가 그리는 단계를 바꿀 수 없어 DOM에서 흉내 냅니다. 실제 삼성 인터넷과 픽셀까지 같지는 않습니다.
-- `:hover`, `:focus`로 바뀌는 색은 반영되지 않습니다.
-- `<img>`로 넣은 SVG는 비트맵처럼 0.7배만 어두워집니다. 실제로는 밝기 범위가 옮겨집니다.
-- 비트맵 CSS 배경은 반투명 검정을 덮어 어둡게 하므로 투명한 부분도 함께 어두워집니다.
-- `iframe` 내부, 닫힌 Shadow DOM, 동영상은 변환하지 않습니다.
-- 유채색 비트맵은 실제 결과와 채널당 최대 20까지 다를 수 있습니다.
-- 콘텐츠 보안 정책(CSP)이 엄격한 사이트에서는 북마크릿이 막힐 수 있습니다.
-- 삼성 인터넷이 업데이트로 동작을 바꾸면 값과 감지 방법이 달라질 수 있습니다.
+- **Color conversion:** Matches values measured on Samsung Internet 31.0 within ±1, across 256 gray levels and 11 kinds of painted content (`npm test`).
+- **Detection:** Reported `forced` with a value of 179 while forced dark was on. The off state was only covered by unit tests, not tried on a real device.
+- **Element comparison:** 277 of 285 cells (97.2%), each combining an element type and a color, matched.
+- **Real pages:** Across 13 article and product pages, including BBC, CNN, Naver News and Amazon, an average of 97.2% of pixels matched. 8 of the 13 reached 99% or more, 10 reached 97% or more, and the lowest was 78.3%.
+
+So that both browsers showed identical content, the pages were frozen with their images, fonts and CSS copied locally. That comparison leaves out script behavior, `iframe`, video and `canvas`. Results on live sites may be lower.
+
+## Limitations
+
+- A page cannot change how the browser paints, so the conversion is imitated through the DOM. It will not match Samsung Internet pixel for pixel.
+- Colors that change on `:hover` or `:focus` are not converted.
+- In the script version, cross-origin images blocked by CORS cannot be read, so the icon rule does not apply to them. SVG images in that position are converted as a whole by a filter, without the per-shape size rules.
+- Gradients with several colors can come out brighter than the real thing.
+- Closed Shadow DOM and video are not converted, and neither is the inside of an `iframe` in the script version.
+- Only Chrome has been tested. Other browsers may give different results.
+- A strict Content Security Policy can block the bookmarklet. The extension is not affected.
+- A Samsung Internet update could change these values or the detection method.

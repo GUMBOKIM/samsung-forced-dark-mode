@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Forced Dark Preview for Samsung Internet",
+  "short_name": "Forced Dark Preview",
+  "version": "0.1.0",
+  "description": "See how Samsung Internet's forced dark mode would paint any page, measured on a real phone. Unofficial. Click to toggle.",
+  "minimum_chrome_version": "120",
+  "action": {
+    "default_title": "Toggle forced dark preview",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}

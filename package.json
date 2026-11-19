@@ -1,5 +1,5 @@
 {
-  "name": "samsung-forced-dark",
+  "name": "samsung-forced-dark-mode",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,8 @@
     "build": "node scripts/build.mjs",
     "demo": "node scripts/build.mjs && node scripts/serve.mjs",
     "test": "node --test \"packages/*/test/*.test.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "extension": "node scripts/build.mjs && cd dist/extension && rm -f ../extension.zip && zip -qr ../extension.zip ."
   },
   "devDependencies": {
     "@types/node": "24.10.1",

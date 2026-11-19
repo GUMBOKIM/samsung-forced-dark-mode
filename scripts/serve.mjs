@@ -5,7 +5,23 @@ import { extname, join, normalize, resolve, sep } from 'node:path';
 
 const PORT = Number(process.env.PORT ?? 5177);
 const ROOT = resolve('.');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
+const TYPES = {
+	'.html': 'text/html; charset=utf-8',
+	'.js': 'text/javascript; charset=utf-8',
+	'.txt': 'text/plain; charset=utf-8',
+	'.css': 'text/css; charset=utf-8',
+	'.svg': 'image/svg+xml',
+	'.png': 'image/png',
+	'.jpg': 'image/jpeg',
+	'.webp': 'image/webp',
+	'.gif': 'image/gif',
+	'.avif': 'image/avif',
+	'.ico': 'image/x-icon',
+	'.woff2': 'font/woff2',
+	'.woff': 'font/woff',
+	'.ttf': 'font/ttf',
+	'.otf': 'font/otf',
+};
 
 createServer((request, response) => {
 	const path = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
