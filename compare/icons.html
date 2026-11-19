@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+		<title>Forced dark icon probe</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				background: #ffffff;
+			}
+
+			body {
+				position: relative;
+				width: 360px;
+				height: 640px;
+				overflow: hidden;
+			}
+
+			.cell {
+				position: absolute;
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<script>
+			// Finds which images Samsung Internet recolors, by size, transparency and color.
+			const page = Number(new URLSearchParams(location.search).get('page') ?? 0);
+			const cells = [];
+
+			const png = (color, width, height, coverage, backdrop) => {
+				const canvas = document.createElement('canvas');
+				canvas.width = width;
+				canvas.height = height;
+				const ctx = canvas.getContext('2d');
+				if (backdrop) {
+					ctx.fillStyle = backdrop;
+					ctx.fillRect(0, 0, width, height);
+				}
+				const side = Math.sqrt(coverage);
+				const w = Math.round(width * side);
+				const h = Math.round(height * side);
+				ctx.fillStyle = color;
+				ctx.fillRect(Math.round((width - w) / 2), Math.round((height - h) / 2), w, h);
+				return canvas.toDataURL('image/png');
+			};
+			const svg = (color, size, coverage) => {
+				const side = size * Math.sqrt(coverage);
+				const start = (size - side) / 2;
+				return 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect x="${start}" y="${start}" width="${side}" height="${side}" fill="${color}"/></svg>`);
+			};
+
+			let x = 2;
+			let y = 2;
+			let rowHeight = 0;
+			const slot = (width, height) => {
+				if (x + width > 358) {
+					x = 2;
+					y += rowHeight + 4;
+					rowHeight = 0;
+				}
+				const spot = { x, y };
+				x += width + 4;
+				rowHeight = Math.max(rowHeight, height);
+				return spot;
+			};
+			const newRow = () => {
+				x = 358;
+				slot(1, 0);
+				x = 2;
+			};
+			const record = (kind, color, spot, width, height) => cells.push({ kind, color, x: spot.x + width / 2, y: spot.y + height / 2 });
+			const image = (kind, color, width, height, src) => {
+				const spot = slot(width, height);
+				const el = document.createElement('img');
+				el.className = 'cell';
+				el.style.cssText = `left:${spot.x}px;top:${spot.y}px;width:${width}px;height:${height}px`;
+				el.src = src;
+				document.body.append(el);
+				record(kind, color, spot, width, height);
+			};
+			const box = (kind, color, width, height, css, html = '') => {
+				const spot = slot(width, height);
+				const el = document.createElement('div');
+				el.className = 'cell';
+				el.style.cssText = `left:${spot.x}px;top:${spot.y}px;width:${width}px;height:${height}px;${css}`;
+				el.innerHTML = html;
+				document.body.append(el);
+				record(kind, color, spot, width, height);
+			};
+
+			// Canvas cells are never converted, so they locate the page inside the phone capture.
+			for (const color of ['#000000', '#808080', '#ffffff', '#ff5714', '#1a73e8', '#34a853', '#9c27b0', '#00bcd4']) {
+				const spot = slot(28, 28);
+				const el = document.createElement('canvas');
+				el.className = 'cell';
+				el.width = el.height = 28;
+				el.style.cssText = `left:${spot.x}px;top:${spot.y}px`;
+				const ctx = el.getContext('2d');
+				ctx.fillStyle = color;
+				ctx.fillRect(0, 0, 28, 28);
+				document.body.append(el);
+				record('canvas', color, spot, 28, 28);
+			}
+			newRow();
+
+			const GRAYS = Array.from({ length: 16 }, (_, i) => `#${(i * 17).toString(16).padStart(2, '0').repeat(3)}`);
+			const HUES = ['#fee500', '#ff5714', '#1a73e8', '#34a853', '#9c27b0', '#00bcd4', '#ff0000', '#00ff00'];
+
+			if (page === 0) {
+				for (const color of [...GRAYS, ...HUES]) image('curve', color, 40, 40, png(color, 40, 40, 0.25));
+				newRow();
+				for (const color of ['#000000', '#808080', '#ffffff', '#1a73e8']) {
+					for (const coverage of [0.06, 0.25, 0.5, 0.75, 0.9, 1]) image(`coverage-${coverage}`, color, 40, 40, png(color, 40, 40, coverage));
+				}
+				newRow();
+				image('on-white', '#000000', 40, 40, png('#000000', 40, 40, 0.25, '#ffffff'));
+				image('on-black', '#ffffff', 40, 40, png('#ffffff', 40, 40, 0.25, '#000000'));
+				image('on-gray', '#000000', 40, 40, png('#000000', 40, 40, 0.25, '#808080'));
+			}
+
+			if (page === 1) {
+				for (const size of [88, 89, 90, 91, 92, 93, 94, 95, 96, 97]) image(`size-${size}`, '#000000', size, size, png('#000000', size, size, 0.25));
+			}
+
+			if (page === 2) {
+				for (const [width, height] of [[200, 40], [40, 200], [300, 20], [120, 60], [60, 120]]) image(`shape-${width}x${height}`, '#000000', width, height, png('#000000', width, height, 0.25));
+				newRow();
+				image('natural-128-shown-48', '#000000', 48, 48, png('#000000', 128, 128, 0.25));
+				image('natural-48-shown-128', '#000000', 128, 128, png('#000000', 48, 48, 0.25));
+			}
+
+			if (page === 3) {
+				for (const size of [16, 20, 21, 24, 32, 48, 96]) image(`img-svg-transparent-${size}`, '#000000', size, size, svg('#000000', size, 0.25));
+				newRow();
+				for (const size of [16, 20, 21, 24, 32, 48, 96]) image(`img-svg-opaque-${size}`, '#000000', size, size, svg('#000000', size, 1));
+				newRow();
+				for (const size of [16, 20, 21, 24, 32, 48]) box(`inline-svg-${size}`, '#000000', size, size, '', `<svg width="${size}" height="${size}" style="display:block"><rect width="${size}" height="${size}" fill="#000000"/></svg>`);
+				box('inline-svg-20x40', '#000000', 20, 40, '', '<svg width="20" height="40" style="display:block"><rect width="20" height="40" fill="#000000"/></svg>');
+				box('inline-svg-40x20', '#000000', 40, 20, '', '<svg width="40" height="20" style="display:block"><rect width="40" height="20" fill="#000000"/></svg>');
+				newRow();
+				for (const size of [16, 24, 48]) box(`bg-svg-${size}`, '#000000', size, size, `background:url("${svg('#000000', size, 1)}") 0 0/100% 100%`);
+				for (const size of [16, 24, 48]) box(`bg-png-transparent-${size}`, '#000000', size, size, `background:url(${png('#000000', size, size, 0.25)}) 0 0/100% 100%`);
+			}
+
+			const inlineSvg = (kind, color, width, height, shape) =>
+				box(kind, color, width, height, '', `<svg width="${width}" height="${height}" style="display:block">${shape}</svg>`);
+			const rect = (width, height, color = '#000000') => `<rect width="${width}" height="${height}" fill="${color}"/>`;
+			const twoTone = (a, b, size) => {
+				const canvas = document.createElement('canvas');
+				canvas.width = canvas.height = size;
+				const ctx = canvas.getContext('2d');
+				ctx.fillStyle = a;
+				ctx.fillRect(size / 4, size / 4, size / 4, size / 2);
+				ctx.fillStyle = b;
+				ctx.fillRect(size / 2, size / 4, size / 4, size / 2);
+				return canvas.toDataURL('image/png');
+			};
+
+			if (page === 4) {
+				for (const v of [112, 116, 120, 124, 128, 132, 136, 140]) {
+					const color = `#${v.toString(16).repeat(3)}`;
+					image('gray-threshold', color, 40, 40, png(color, 40, 40, 0.25));
+				}
+				newRow();
+				for (const color of ['#202030', '#102040', '#301010', '#103010', '#333344', '#2a2a30', '#404050', '#505060']) image('tinted', color, 40, 40, png(color, 40, 40, 0.25));
+				newRow();
+				for (const coverage of [0.78, 0.8, 0.82, 0.84, 0.86, 0.88]) image(`coverage-${coverage}`, '#000000', 40, 40, png('#000000', 40, 40, coverage));
+				newRow();
+				for (const a of [0.25, 0.5, 0.75]) image(`alpha-${a}`, '#000000', 40, 40, png(`rgba(0,0,0,${a})`, 40, 40, 0.25));
+				newRow();
+				for (const [a, b] of [['#000000', '#ffffff'], ['#000000', '#1a73e8'], ['#000000', '#808080'], ['#333333', '#cccccc']]) {
+					const spot = { x, y };
+					image(`two-tone-left ${b}`, a, 40, 40, twoTone(a, b, 40));
+					cells[cells.length - 1].x = spot.x + 15;
+					cells.push({ kind: `two-tone-right ${a}`, color: b, x: spot.x + 25, y: spot.y + 20 });
+				}
+				newRow();
+				for (const [width, height] of [[90, 20], [20, 90], [91, 20], [20, 91]]) image(`shape-${width}x${height}`, '#000000', width, height, png('#000000', width, height, 0.25));
+			}
+
+			if (page === 5) {
+				for (const size of [17, 18, 19, 20]) inlineSvg(`rect-${size}`, '#000000', size, size, rect(size, size));
+				for (const [width, height] of [[16, 40], [40, 16], [16, 100], [100, 16]]) inlineSvg(`rect-${width}x${height}`, '#000000', width, height, rect(width, height));
+				newRow();
+				for (const size of [56, 64, 72, 80, 88, 96]) inlineSvg(`rect-${size}`, '#000000', size, size, rect(size, size));
+				newRow();
+				inlineSvg('rect-200x60', '#000000', 200, 60, rect(200, 60));
+				inlineSvg('rect-60x130', '#000000', 60, 130, rect(60, 130));
+			}
+
+			if (page === 6) {
+				for (const size of [16, 24, 48, 96]) inlineSvg(`circle-${size}`, '#000000', size, size, `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#000000"/>`);
+				newRow();
+				for (const size of [16, 24, 48, 96]) inlineSvg(`path-square-${size}`, '#000000', size, size, `<path d="M0 0h${size}v${size}H0z" fill="#000000"/>`);
+				newRow();
+				inlineSvg('stroke-line-6px', '#000000', 60, 20, '<path d="M0 10H60" stroke="#000000" stroke-width="6"/>');
+				inlineSvg('nested-in-group', '#000000', 16, 16, `<g fill="#000000"><rect width="16" height="16"/></g>`);
+				inlineSvg('currentColor-16', '#000000', 16, 16, `<rect width="16" height="16" fill="currentColor"/>`);
+				image('img-svg-path-16', '#000000', 16, 16, 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M0 0h16v16H0z" fill="#000000"/></svg>'));
+				image('img-svg-path-48', '#000000', 48, 48, 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><path d="M0 0h48v48H0z" fill="#000000"/></svg>'));
+			}
+
+			if (page === 7) {
+				for (const color of ['#000000', '#404040', '#808080', '#c0c0c0', '#ffffff', '#fee500', '#ff5714', '#1a73e8', '#34a853', '#9c27b0', '#00bcd4', '#d8d8d8']) inlineSvg('rect-96-curve', color, 96, 96, rect(96, 96, color));
+			}
+
+			if (page === 8) {
+				const hex = (v) => Math.min(255, v).toString(16).padStart(2, '0');
+				for (const gray of [0x20, 0x40, 0x50, 0x60, 0x70]) {
+					for (const tint of [8, 16, 32, 64, 128]) {
+						const color = `#${hex(gray)}${hex(gray)}${hex(gray + tint)}`;
+						image(`chroma gray=${gray} tint=${tint}`, color, 40, 40, png(color, 40, 40, 0.25));
+					}
+					newRow();
+				}
+				for (const color of ['#800000', '#008000', '#000080', '#400000', '#004000', '#000040']) image('dark-hue', color, 40, 40, png(color, 40, 40, 0.25));
+				newRow();
+				for (const [a, b] of [['#000000', '#333333'], ['#000000', '#777777'], ['#222222', '#444444']]) {
+					const spot = { x, y };
+					image(`dark-two-tone-left ${b}`, a, 40, 40, twoTone(a, b, 40));
+					cells[cells.length - 1].x = spot.x + 15;
+					cells.push({ kind: `dark-two-tone-right ${a}`, color: b, x: spot.x + 25, y: spot.y + 20 });
+				}
+			}
+
+			if (page === 9) {
+				for (const size of [89, 90, 91, 92, 93, 94, 95]) inlineSvg(`rect-${size}`, '#000000', size, size, rect(size, size));
+				newRow();
+				inlineSvg('rect-19x20', '#000000', 19, 20, rect(19, 20));
+				inlineSvg('rect-20x19', '#000000', 20, 19, rect(20, 19));
+				inlineSvg('ellipse-19', '#000000', 19, 19, '<ellipse cx="9.5" cy="9.5" rx="9.5" ry="9.5" fill="#000000"/>');
+				inlineSvg('stroke-only-16', '#000000', 16, 16, '<rect x="4" y="4" width="8" height="8" fill="none" stroke="#000000" stroke-width="8"/>');
+			}
+
+			(async () => {
+				await Promise.all([...document.images].map((el) => el.decode().catch(() => {})));
+				window.__cells = cells;
+				window.__ready = true;
+			})();
+		</script>
+	</body>
+</html>

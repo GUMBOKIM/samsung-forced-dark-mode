@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ko">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+		<title>Forced dark page comparison</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				margin: 0;
+				background: #ffffff;
+				color: #1f2328;
+				font: 15px/22px sans-serif;
+			}
+
+			/* Headless Chrome will not open narrower than 500px, so the layout width is fixed here. */
+			body {
+				width: 360px;
+			}
+
+			header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				height: 48px;
+				padding: 0 14px;
+				border-bottom: 1px solid #e3e6ea;
+				font-weight: 700;
+			}
+
+			.hero {
+				height: 96px;
+				padding: 18px 14px;
+				background: linear-gradient(120deg, #ff8a3d, #ffd23f);
+				color: #2b1600;
+			}
+
+			.hero b {
+				display: block;
+				font-size: 20px;
+				line-height: 30px;
+			}
+
+			.photo {
+				display: block;
+				width: 360px;
+				height: 110px;
+			}
+
+			.card {
+				height: 104px;
+				margin: 12px 14px;
+				padding: 12px;
+				border: 1px solid #d0d7de;
+				border-radius: 10px;
+				background: #f6f8fa;
+				box-shadow: 0 2px 6px rgba(31, 35, 40, 0.18);
+			}
+
+			.badge {
+				display: inline-block;
+				height: 22px;
+				padding: 0 8px;
+				border-radius: 11px;
+				background: #ffe3d6;
+				color: #c2410c;
+				font-size: 12px;
+			}
+
+			.price {
+				color: #ff5714;
+				font-weight: 700;
+			}
+
+			input,
+			button {
+				display: block;
+				width: 332px;
+				height: 44px;
+				margin: 8px 14px;
+				border-radius: 8px;
+				font: inherit;
+			}
+
+			input {
+				padding: 0 10px;
+				border: 1px solid #d0d7de;
+				background: #ffffff;
+				color: #1f2328;
+			}
+
+			.primary {
+				border: 0;
+				background: #fee500;
+				color: #191600;
+				font-weight: 700;
+			}
+
+			.secondary {
+				border: 1px solid #1a73e8;
+				background: #ffffff;
+				color: #1a73e8;
+			}
+
+			.icons {
+				display: flex;
+				gap: 14px;
+				align-items: center;
+				height: 40px;
+				margin: 8px 14px;
+			}
+
+			canvas {
+				display: block;
+				width: 332px;
+				height: 60px;
+				margin: 8px 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<header><span>모닝빵 베이커리</span><span>메뉴</span></header>
+		<section class="hero"><b>오늘 아침에 구운 빵</b>오전 7시부터 나옵니다</section>
+		<img class="photo" id="photo" alt="" />
+		<article class="card">
+			<span class="badge">인기</span>
+			<div>우유 식빵</div>
+			<div class="price">4,800원</div>
+		</article>
+		<input readonly placeholder="요청 사항을 적어 주세요" />
+		<button class="primary" type="button">바로 주문하기</button>
+		<button class="secondary" type="button">장바구니</button>
+		<div class="icons">
+			<svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="13" fill="#ff5714" /></svg>
+			<svg width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" fill="#1a73e8" /></svg>
+			<img id="icon" width="24" height="24" alt="" />
+		</div>
+		<canvas id="chart" width="332" height="60"></canvas>
+		<script>
+			const photo = document.createElement('canvas');
+			photo.width = 360;
+			photo.height = 110;
+			const ctx = photo.getContext('2d');
+			const fill = ctx.createLinearGradient(0, 0, 360, 110);
+			fill.addColorStop(0, '#f7e3c4');
+			fill.addColorStop(1, '#c47a2c');
+			ctx.fillStyle = fill;
+			ctx.fillRect(0, 0, 360, 110);
+			document.getElementById('photo').src = photo.toDataURL('image/png');
+
+			const glyph = document.createElement('canvas');
+			glyph.width = glyph.height = 24;
+			const g = glyph.getContext('2d');
+			g.fillStyle = '#000000';
+			g.fillRect(6, 6, 12, 12);
+			document.getElementById('icon').src = glyph.toDataURL('image/png');
+
+			const chart = document.getElementById('chart').getContext('2d');
+			chart.fillStyle = '#ffffff';
+			chart.fillRect(0, 0, 332, 60);
+			chart.fillStyle = '#ff5714';
+			[20, 36, 28, 48, 40].forEach((height, i) => chart.fillRect(16 + i * 62, 60 - height, 40, height));
+
+			(async () => {
+				await Promise.all([...document.images].map((image) => image.decode().catch(() => {})));
+				if (new URLSearchParams(location.search).has('emulate')) {
+					await new Promise((resolve) => {
+						const script = document.createElement('script');
+						script.src = '/dist/emulate.global.js';
+						script.onload = resolve;
+						document.head.append(script);
+					});
+					SamsungForcedDarkEmulate.emulateForcedDark({ observe: false });
+				}
+				window.__ready = true;
+			})();
+		</script>
+	</body>
+</html>

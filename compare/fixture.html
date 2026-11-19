@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+		<title>Forced dark comparison</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				background: #ffffff;
+				color: #000000;
+			}
+
+			.cell {
+				position: absolute;
+				display: block;
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+			}
+
+			.flat {
+				border: 0;
+				outline: 0;
+				border-radius: 0;
+				appearance: none;
+				resize: none;
+			}
+
+			.pseudo::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: var(--c);
+			}
+		</style>
+	</head>
+	<body>
+		<script>
+			const query = new URLSearchParams(location.search);
+			const page = Number(query.get('page') ?? 0);
+			const COLORS = ['#000000', '#404040', '#808080', '#c0c0c0', '#d8d8d8', '#ffffff', '#fee500', '#ff5714', '#1a73e8', '#34a853', '#9c27b0', '#00bcd4'];
+			const SIZE = 28;
+			const PITCH_X = 30;
+			const PITCH_Y = 32;
+
+			const bitmap = (color, type, size = 28) => {
+				const canvas = document.createElement('canvas');
+				canvas.width = canvas.height = size;
+				const ctx = canvas.getContext('2d');
+				ctx.fillStyle = color;
+				ctx.fillRect(0, 0, size, size);
+				return canvas.toDataURL(type, 1);
+			};
+			const svgUrl = (color, size) =>
+				'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="${color}"/></svg>`);
+			const icon = (color, size) => {
+				const canvas = document.createElement('canvas');
+				canvas.width = canvas.height = size;
+				const ctx = canvas.getContext('2d');
+				ctx.fillStyle = color;
+				ctx.fillRect(size / 4, size / 4, size / 2, size / 2);
+				return canvas.toDataURL('image/png');
+			};
+			const alpha = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)}, ${a})`;
+
+			const cells = [];
+			const place = (tag, kind, color, x, y, width, height, css = '', sample = [width / 2, height / 2]) => {
+				const el = document.createElement(tag);
+				el.className = 'cell';
+				el.style.cssText = `left:${x}px;top:${y}px;width:${width}px;height:${height}px;${css}`;
+				document.body.append(el);
+				cells.push({ kind, color, x: x + sample[0], y: y + sample[1] });
+				return el;
+			};
+
+			const KINDS = {
+				background: (c, x, y) => place('div', 'background', c, x, y, SIZE, SIZE, `background:${c}`),
+				button: (c, x, y) => place('button', 'button', c, x, y, SIZE, SIZE, `background:${c}`).classList.add('flat'),
+				input: (c, x, y) => {
+					const el = place('input', 'input', c, x, y, SIZE, SIZE, `background:${c}`);
+					el.classList.add('flat');
+					el.readOnly = true;
+				},
+				textarea: (c, x, y) => {
+					const el = place('textarea', 'textarea', c, x, y, SIZE, SIZE, `background:${c}`);
+					el.classList.add('flat');
+					el.readOnly = true;
+				},
+				select: (c, x, y) => place('select', 'select', c, x, y, SIZE, SIZE, `background:${c}`).classList.add('flat'),
+				text: (c, x, y) => {
+					place('div', 'text', c, x, y, SIZE, SIZE, `color:${c};font:60px/28px monospace;text-align:center`).textContent = '█';
+				},
+				border: (c, x, y) => place('div', 'border', c, x, y, SIZE, SIZE, `border:10px solid ${c}`, [5, 14]),
+				outline: (c, x, y) => {
+					const el = place('div', 'outline', c, x + 10, y + 10, 8, 8, `outline:8px solid ${c};overflow:visible`, [-5, 4]);
+					return el;
+				},
+				shadow: (c, x, y) => place('div', 'shadow', c, x + 10, y + 10, 8, 8, `box-shadow:0 0 0 8px ${c};overflow:visible`, [-5, 4]),
+				gradient: (c, x, y) => place('div', 'gradient', c, x, y, SIZE, SIZE, `background:linear-gradient(${c},${c})`),
+				'gradient-mid': (c, x, y) => place('div', 'gradient-mid', c, x, y, SIZE, SIZE, `background:linear-gradient(to right,#ffffff,${c})`),
+				'small-box': (c, x, y) => place('div', 'small-box', c, x + 6, y + 6, 16, 16, `background:${c}`),
+				'alpha-background': (c, x, y) => place('div', 'alpha-background', c, x, y, SIZE, SIZE, `background:${alpha(c, 0.5)}`),
+				opacity: (c, x, y) => place('div', 'opacity', c, x, y, SIZE, SIZE, `background:${c};opacity:.5`),
+				'pseudo-before': (c, x, y) => place('div', 'pseudo-before', c, x, y, SIZE, SIZE, `--c:${c}`).classList.add('pseudo'),
+				canvas: (c, x, y) => {
+					const el = place('canvas', 'canvas', c, x, y, SIZE, SIZE);
+					el.width = el.height = SIZE;
+					const ctx = el.getContext('2d');
+					ctx.fillStyle = c;
+					ctx.fillRect(0, 0, SIZE, SIZE);
+				},
+				'inline-svg': (c, x, y) => {
+					place('div', 'inline-svg', c, x, y, SIZE, SIZE).innerHTML = `<svg width="28" height="28" style="display:block"><rect width="28" height="28" fill="${c}"/></svg>`;
+				},
+				'inline-svg-small': (c, x, y) => {
+					place('div', 'inline-svg-small', c, x + 6, y + 6, 16, 16).innerHTML = `<svg width="16" height="16" style="display:block"><rect width="16" height="16" fill="${c}"/></svg>`;
+				},
+				'img-svg': (c, x, y) => (place('img', 'img-svg', c, x, y, SIZE, SIZE).src = svgUrl(c, SIZE)),
+				'img-svg-small': (c, x, y) => (place('img', 'img-svg-small', c, x + 6, y + 6, 16, 16).src = svgUrl(c, 16)),
+				'img-png': (c, x, y) => (place('img', 'img-png', c, x, y, SIZE, SIZE).src = bitmap(c, 'image/png')),
+				'img-jpg': (c, x, y) => (place('img', 'img-jpg', c, x, y, SIZE, SIZE).src = bitmap(c, 'image/jpeg')),
+				'img-png-small': (c, x, y) => (place('img', 'img-png-small', c, x + 6, y + 6, 16, 16).src = bitmap(c, 'image/png', 16)),
+				'background-png': (c, x, y) => place('div', 'background-png', c, x, y, SIZE, SIZE, `background:url(${bitmap(c, 'image/png')}) 0 0/28px 28px`),
+			};
+
+			const PAGES = [
+				['background', 'button', 'input', 'textarea', 'select', 'text', 'border', 'outline', 'shadow', 'gradient', 'gradient-mid', 'small-box', 'alpha-background', 'opacity', 'pseudo-before', 'canvas'],
+				['inline-svg', 'inline-svg-small', 'img-svg', 'img-svg-small', 'img-png', 'img-jpg', 'img-png-small', 'background-png', 'canvas'],
+			];
+
+			let bottom = 0;
+			PAGES[page].forEach((kind, row) => {
+				COLORS.forEach((color, column) => KINDS[kind](color, column * PITCH_X + 1, row * PITCH_Y + 2));
+				bottom = (row + 1) * PITCH_Y + 2;
+			});
+
+			if (page === 1) {
+				let x = 2;
+				let y = bottom + 4;
+				for (const size of [16, 24, 32, 48, 64, 80, 90, 96, 128]) {
+					if (x + size > 358) {
+						x = 2;
+						y += 92;
+					}
+					place('img', `icon-${size}`, '#000000', x, y, size, size).src = icon('#000000', size);
+					x += size + 4;
+				}
+			}
+
+			document.body.style.height = '700px';
+
+			(async () => {
+				await Promise.all([...document.images].map((image) => image.decode().catch(() => {})));
+				if (query.has('emulate')) {
+					await new Promise((resolve) => {
+						const script = document.createElement('script');
+						script.src = '/dist/emulate.global.js';
+						script.onload = resolve;
+						document.head.append(script);
+					});
+					SamsungForcedDarkEmulate.emulateForcedDark({ observe: false });
+				}
+				window.__cells = cells;
+				window.__ready = true;
+			})();
+		</script>
+	</body>
+</html>

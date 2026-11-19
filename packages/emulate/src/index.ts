@@ -8,14 +8,18 @@
 import {
 	BACKGROUND_IMAGE_BRIGHTNESS,
 	IMAGE_BRIGHTNESS,
+	ICON_MAX_PX,
 	SMALL_BOX_PX,
 	convert,
+	shapeRole,
 	type Role,
 } from './color.ts';
 import { hasVisibleColor, rewriteColors } from './css-color.ts';
+import { FILTER_MARKUP, ICON_FILTER, SVG_FILTER, createImageResolver, type ResourceLoader } from './image.ts';
 
 export { convert, luma, type RGB, type Role } from './color.ts';
 export { rewriteColors } from './css-color.ts';
+export type { ResourceLoader } from './image.ts';
 
 export interface EmulateOptions {
 	/** The subtree to convert. Defaults to the whole document. */
@@ -24,6 +28,11 @@ export interface EmulateOptions {
 	observe?: boolean;
 	/** The shortest time between two conversions while the page keeps changing, in milliseconds */
 	minIntervalMs?: number;
+	/**
+	 * Fetches images the page itself may not read, such as cross-origin images without CORS.
+	 * A browser extension can pass one, so icons and SVG images are converted on any site.
+	 */
+	loadResource?: ResourceLoader;
 }
 
 export interface Emulation {
@@ -59,7 +68,9 @@ export const IGNORE_ATTRIBUTE = 'data-sfd-ignore';
 const BEFORE = 'data-sfd-before';
 const AFTER = 'data-sfd-after';
 const PLACEHOLDER = 'data-sfd-placeholder';
-const MARKS = [BEFORE, AFTER, PLACEHOLDER];
+const BEFORE_IMAGE = 'data-sfd-before-image';
+const AFTER_IMAGE = 'data-sfd-after-image';
+const MARKS = [BEFORE, AFTER, PLACEHOLDER, BEFORE_IMAGE, AFTER_IMAGE];
 
 const SKIPPED_TAGS = new Set(['HEAD', 'STYLE', 'SCRIPT', 'META', 'LINK', 'TITLE', 'BASE', 'NOSCRIPT', 'TEMPLATE']);
 const SIDES = ['top', 'right', 'bottom', 'left'] as const;
@@ -67,21 +78,31 @@ const OBSERVED_ATTRIBUTES = ['class', 'style', 'hidden', 'open', 'disabled', 'ch
 const DEFAULT_MIN_INTERVAL_MS = 200;
 
 const pseudoRule = (attribute: string, pseudo: string, name: string) =>
-	`[${attribute}]${pseudo}{color:var(--sfd-${name}-color)!important;background-color:var(--sfd-${name}-bg)!important;` +
+	`[${attribute}]${pseudo}{color:var(--sfd-${name}-color)!important;-webkit-text-fill-color:var(--sfd-${name}-color)!important;background-color:var(--sfd-${name}-bg)!important;` +
 	SIDES.map((side) => `border-${side}-color:var(--sfd-${name}-${side})!important`).join(';') +
+	'}';
+
+/** Kept apart from the color rule, because an unset variable would erase the page's own image */
+const pseudoImageRule = (attribute: string, pseudo: string, name: string) =>
+	`[${attribute}]${pseudo}{` +
+	['image', 'size', 'position', 'repeat'].map((part) => `background-${part}:var(--sfd-${name}-${part})!important`).join(';') +
 	'}';
 
 /** Pseudo-elements cannot take inline styles, so their colors travel through custom properties */
 const PSEUDO_CSS =
 	pseudoRule(BEFORE, '::before', 'before') +
 	pseudoRule(AFTER, '::after', 'after') +
-	`[${PLACEHOLDER}]::placeholder{color:var(--sfd-placeholder)!important;opacity:1!important}`;
+	pseudoImageRule(BEFORE_IMAGE, '::before', 'before') +
+	pseudoImageRule(AFTER_IMAGE, '::after', 'after') +
+	`[${PLACEHOLDER}]::placeholder{color:var(--sfd-placeholder)!important;-webkit-text-fill-color:var(--sfd-placeholder)!important;opacity:1!important}`;
 
 /** Stops transitions while reading, or a computed color could be a value halfway through one */
 const FREEZE_CSS = '*,*::before,*::after{transition:none!important}';
 
 function backgroundRole(el: Element, box: DOMRect): Role {
 	if (el === document.documentElement) return 'root';
+	// A body background with none on <html> is painted across the whole page, like the root's own.
+	if (el === document.body && !hasVisibleColor(getComputedStyle(document.documentElement).backgroundColor)) return 'root';
 	if (el.tagName === 'BUTTON' || el.tagName === 'SELECT') return 'button';
 	if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return 'field';
 	return box.width <= SMALL_BOX_PX && box.height <= SMALL_BOX_PX ? 'text' : 'background';
@@ -113,6 +134,8 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 	const saved = new Map<Styled, Saved>();
 	const marked = new Set<Element>();
 	const sheets = new Map<ShadowRoot | Document, HTMLStyleElement>();
+	const filters = new Set<Element>();
+	const images = createImageResolver(() => schedule(), options.loadResource);
 	let active = true;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let lastRun = 0;
@@ -125,6 +148,13 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 		sheet.textContent = PSEUDO_CSS;
 		(scope instanceof Document ? scope.head ?? scope.documentElement : scope).append(sheet);
 		sheets.set(scope, sheet);
+
+		const holder = document.createElement('div');
+		holder.setAttribute(IGNORE_ATTRIBUTE, '');
+		holder.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+		holder.innerHTML = FILTER_MARKUP;
+		(scope instanceof Document ? scope.body ?? scope.documentElement : scope).append(holder);
+		filters.add(holder);
 	};
 
 	const restore = () => {
@@ -166,22 +196,34 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 		};
 
 		if (el instanceof SVGElement) {
+			// Masks and clip paths are read as coverage, so recoloring them would change what shows through.
+			if (el.closest('mask, clipPath')) return;
 			if (el.tagName === 'stop') addConverted('stop-color', css.getPropertyValue('stop-color'), 'svg');
 			if (el.tagName !== 'svg') {
-				addConverted('fill', css.fill, 'svg');
-				addConverted('stroke', css.stroke, 'svg');
+				const shape = el.getBoundingClientRect();
+				const role = shapeRole(el.tagName, shape.width, shape.height);
+				addConverted('fill', css.fill, role);
+				addConverted('stroke', css.stroke, role);
 			}
 			return;
 		}
 
 		const box = el.getBoundingClientRect();
 		addConverted('color', css.color, 'text');
-		addConverted('-webkit-text-fill-color', css.getPropertyValue('-webkit-text-fill-color'), 'text');
+		// Only a fill the page set itself: an inline fill would also repaint placeholders and pseudo-elements.
+		const textFill = css.getPropertyValue('-webkit-text-fill-color');
+		if (textFill !== css.color) addConverted('-webkit-text-fill-color', textFill, 'text');
 		addConverted('caret-color', css.caretColor, 'text');
 		addConverted('text-decoration-color', css.textDecorationColor, 'text');
 		addConverted('background-color', css.backgroundColor, backgroundRole(el, box));
 
-		if (css.backgroundImage.includes('url(')) planBackgroundImage(css, add);
+		const backgroundUrl = /^url\("(.+)"\)$/.exec(css.backgroundImage)?.[1];
+		const backgroundPlan = backgroundUrl ? images.lookupBackground(backgroundUrl, box.width, box.height, css.backgroundSize, css.backgroundPosition) : undefined;
+		const isBareBox = el.childElementCount === 0 && !el.textContent?.trim() && !hasVisibleColor(css.backgroundColor);
+		if (backgroundPlan?.kind === 'svg' || backgroundPlan?.kind === 'icon' || backgroundPlan?.kind === 'transparent') add('background-image', `url("${backgroundPlan.url}")`);
+		// A veil would also darken the see-through parts of an image that cannot be read.
+		else if (backgroundPlan?.kind === 'unreadable' && isBareBox) add('filter', css.filter === 'none' ? `brightness(${BACKGROUND_IMAGE_BRIGHTNESS})` : `${css.filter} brightness(${BACKGROUND_IMAGE_BRIGHTNESS})`);
+		else if (css.backgroundImage.includes('url(')) planBackgroundImage(css, add);
 		else if (css.backgroundImage.includes('gradient')) addConverted('background-image', css.backgroundImage, 'gradient');
 
 		for (const side of SIDES) {
@@ -193,8 +235,13 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 		if (css.boxShadow !== 'none') addConverted('box-shadow', css.boxShadow, 'shadow');
 
 		if (el.tagName === 'IMG') {
-			const dim = `brightness(${IMAGE_BRIGHTNESS})`;
-			add('filter', css.filter === 'none' ? dim : `${css.filter} ${dim}`);
+			const image = el as HTMLImageElement;
+			const plan = images.lookup(image.currentSrc || image.src, box.width, box.height);
+			const filter = (value: string) => add('filter', css.filter === 'none' ? value : `${css.filter} ${value}`);
+			if (plan?.kind === 'svg') add('content', `url("${plan.url}")`);
+			else if (plan?.kind === 'unreadable-svg') filter(`url(#${SVG_FILTER})`);
+			else if (plan?.kind === 'icon' && box.width <= ICON_MAX_PX && box.height <= ICON_MAX_PX) filter(`url(#${ICON_FILTER})`);
+			else filter(`brightness(${IMAGE_BRIGHTNESS})`);
 		}
 
 		if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
@@ -202,7 +249,7 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 			marks.push([el, PLACEHOLDER]);
 		}
 
-		for (const [pseudo, mark, name] of [['::before', BEFORE, 'before'], ['::after', AFTER, 'after']] as const) {
+		for (const [pseudo, mark, name, imageMark] of [['::before', BEFORE, 'before', BEFORE_IMAGE], ['::after', AFTER, 'after', AFTER_IMAGE]] as const) {
 			const part = getComputedStyle(el, pseudo);
 			if (part.content === 'none' || part.content === 'normal') continue;
 			const small = parseFloat(part.width) <= SMALL_BOX_PX && parseFloat(part.height) <= SMALL_BOX_PX;
@@ -212,6 +259,29 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 				add(`--sfd-${name}-${side}`, rewriteColors(part.getPropertyValue(`border-${side}-color`), 'border'));
 			}
 			marks.push([el, mark]);
+
+			if (part.backgroundImage !== 'none') {
+				const source = part.backgroundImage;
+				const url = /^url\("(.+)"\)$/.exec(source)?.[1];
+				const plan = url ? images.lookupBackground(url, parseFloat(part.width) || 0, parseFloat(part.height) || 0, part.backgroundSize, part.backgroundPosition) : undefined;
+				let layers = rewriteColors(source, 'gradient');
+				let size = part.backgroundSize;
+				let position = part.backgroundPosition;
+				let repeat = part.backgroundRepeat;
+				if (plan?.kind === 'svg' || plan?.kind === 'icon' || plan?.kind === 'transparent') layers = `url("${plan.url}")`;
+				else if (source.includes('url(')) {
+					const veil = `rgba(0, 0, 0, ${1 - BACKGROUND_IMAGE_BRIGHTNESS})`;
+					layers = `linear-gradient(${veil}, ${veil}), ${source}`;
+					size = `auto, ${size}`;
+					position = `0% 0%, ${position}`;
+					repeat = `repeat, ${repeat}`;
+				}
+				add(`--sfd-${name}-image`, layers);
+				add(`--sfd-${name}-size`, size);
+				add(`--sfd-${name}-position`, position);
+				add(`--sfd-${name}-repeat`, repeat);
+				marks.push([el, imageMark]);
+			}
 		}
 	};
 
@@ -234,7 +304,8 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 		const html = document.documentElement;
 		const body = document.body;
 		if (root === html && !hasVisibleColor(getComputedStyle(html).backgroundColor) && (!body || !hasVisibleColor(getComputedStyle(body).backgroundColor))) {
-			const [r, g, b] = convert([255, 255, 255], 'root');
+			// The empty canvas ends up at the darkest end of the range, unlike a white background.
+			const [r, g, b] = convert([0, 0, 0], 'root');
 			writes.push({ el: html, prop: 'background-color', value: `rgb(${r}, ${g}, ${b})` });
 		}
 		return { writes, marks };
@@ -298,6 +369,8 @@ export function emulateForcedDark(options: EmulateOptions = {}): Emulation {
 			restore();
 			for (const sheet of sheets.values()) sheet.remove();
 			sheets.clear();
+			for (const holder of filters) holder.remove();
+			filters.clear();
 			current = null;
 		},
 	};

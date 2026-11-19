@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>No background</title>
+	</head>
+	<body style="margin: 0">
+		<canvas id="c" width="28" height="28" style="position: absolute; left: 2px; top: 2px"></canvas>
+		<script>
+			const ctx = document.getElementById('c').getContext('2d');
+			ctx.fillStyle = '#ff5714';
+			ctx.fillRect(0, 0, 28, 28);
+			window.__cells = [
+				{ kind: 'canvas', color: '#ff5714', x: 16, y: 16 },
+				{ kind: 'empty-page', color: 'none', x: 180, y: 300 },
+			];
+			window.__ready = true;
+		</script>
+	</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+		<title>Forced dark root background probe</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				background: #ffffff;
+			}
+
+			body {
+				position: relative;
+				width: 360px;
+				height: 640px;
+				overflow: hidden;
+			}
+
+			.cell {
+				position: absolute;
+				display: block;
+				border: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<script>
+			// Each frame is its own document, so its root background follows the rules of a whole page.
+			const COLORS = ['#000000', '#404040', '#808080', '#c0c0c0', '#d8d8d8', '#ffffff', '#fee500', '#ff5714', '#1a73e8', '#34a853', '#9c27b0', '#00bcd4'];
+			const WIDTH = 84;
+			const HEIGHT = 50;
+			const cells = [];
+			let row = 0;
+			let column = 0;
+
+			['#000000', '#808080', '#ffffff', '#ff5714', '#1a73e8', '#34a853', '#9c27b0', '#00bcd4'].forEach((color, i) => {
+				const el = document.createElement('canvas');
+				el.className = 'cell';
+				el.width = el.height = 28;
+				el.style.cssText = `left:${2 + i * 32}px;top:2px`;
+				const ctx = el.getContext('2d');
+				ctx.fillStyle = color;
+				ctx.fillRect(0, 0, 28, 28);
+				document.body.append(el);
+				cells.push({ kind: 'canvas', color, x: 2 + i * 32 + 14, y: 16 });
+			});
+
+			const frame = (kind, color, html, samples = [[WIDTH / 2, HEIGHT / 2, kind, color]]) => {
+				const x = 2 + column * (WIDTH + 4);
+				const y = 34 + row * (HEIGHT + 4);
+				const el = document.createElement('iframe');
+				el.className = 'cell';
+				el.style.cssText = `left:${x}px;top:${y}px;width:${WIDTH}px;height:${HEIGHT}px`;
+				el.srcdoc = html;
+				document.body.append(el);
+				for (const [dx, dy, label, sampleColor] of samples) cells.push({ kind: label, color: sampleColor, x: x + dx, y: y + dy });
+				if (++column === 4) {
+					column = 0;
+					row++;
+				}
+			};
+
+			for (const color of COLORS) frame('body-only', color, `<!doctype html><html><body style="margin:0;background:${color}"></body></html>`);
+			for (const color of COLORS) frame('html-only', color, `<!doctype html><html style="background:${color}"><body style="margin:0"></body></html>`);
+			frame('no-background', '#ffffff', '<!doctype html><html><body style="margin:0"></body></html>');
+			frame('html-and-body', '#ffffff', '<!doctype html><html style="background:#ffffff"><body style="margin:0;height:20px;background:#ffffff"></body></html>', [
+				[42, 10, 'both:body-part', '#ffffff'],
+				[42, 38, 'both:html-part', '#ffffff'],
+			]);
+			frame('short-body', '#ffffff', '<!doctype html><html><body style="margin:0;height:20px;background:#ffffff"></body></html>', [
+				[42, 10, 'short-body:inside', '#ffffff'],
+				[42, 38, 'short-body:outside', '#ffffff'],
+			]);
+			frame('child-on-body', '#ffffff', '<!doctype html><html><body style="margin:0;background:#ffffff"><div style="height:20px;background:#ffffff"></div></body></html>', [
+				[42, 10, 'child-on-body:child', '#ffffff'],
+				[42, 38, 'child-on-body:body', '#ffffff'],
+			]);
+
+			setTimeout(() => {
+				window.__cells = cells;
+				window.__ready = true;
+			}, 800);
+		</script>
+	</body>
+</html>
