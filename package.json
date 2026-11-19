@@ -1,6 +1,6 @@
 {
   "name": "samsung-forced-dark-mode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Detect Samsung Internet's forced dark mode, and reproduce it in any browser",
   "keywords": [
     "samsung-internet",
